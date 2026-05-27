@@ -7,22 +7,27 @@ export default async function handler(req, res) {
   const url = process.env.STORAGE_REST_API_URL || process.env.KV_REST_API_URL;
   const token = process.env.STORAGE_REST_API_TOKEN || process.env.KV_REST_API_TOKEN;
 
-  if (!url || !token) {
-    return res.status(500).json({ error: 'Variables de entorno no configuradas', url: !!url, token: !!token });
-  }
-
   async function kvGet(key) {
     const r = await fetch(`${url}/get/${key}`, { headers: { Authorization: `Bearer ${token}` } });
     const j = await r.json();
-    return j.result ? JSON.parse(j.result) : null;
+    if (!j.result) return null;
+    // Handle both double-serialized and normal JSON
+    try {
+      const val = typeof j.result === 'string' ? JSON.parse(j.result) : j.result;
+      return typeof val === 'string' ? JSON.parse(val) : val;
+    } catch(e) {
+      return null;
+    }
   }
 
   async function kvSet(key, value) {
-    await fetch(`${url}/set/${key}`, {
+    // Store as plain JSON string (single serialization)
+    const r = await fetch(`${url}/set/${key}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(JSON.stringify(value))
+      body: JSON.stringify(value)
     });
+    return r.json();
   }
 
   if (req.method === 'GET') {
