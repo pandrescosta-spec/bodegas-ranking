@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking de Bodegas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍷</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --wine: #6B1A2E;
+    --wine-mid: #9B3A5A;
+    --gold: #C9A84C;
+    --sand: #F5ECD7;
+    --sand2: #EFE0C0;
+    --bg: #FAF7F2;
+    --surface: #FFFFFF;
+    --border: #E0D5C5;
+    --text: #1A1A1A;
+    --text-muted: #666;
+    --text-hint: #999;
+    --green-bg: #E8F5E9;
+    --green-text: #2E7D32;
+    --blue-bg: #E3F2FD;
+    --blue-text: #1565C0;
+    --red-bg: #FFEBEE;
+    --red-text: #C62828;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1A1008;
+      --surface: #261510;
+      --border: #3D2518;
+      --text: #F0E6D0;
+      --text-muted: #B08060;
+      --text-hint: #806040;
+      --sand: #2A1A0A;
+      --sand2: #3A2010;
+      --green-bg: #0D2E0F;
+      --green-text: #81C784;
+      --blue-bg: #0D1B2E;
+      --blue-text: #90CAF9;
+      --red-bg: #2E0D0D;
+      --red-text: #EF9A9A;
+    }
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .app { max-width: 720px; margin: 0 auto; padding: 0 16px 60px; }
+
+  /* Header */
+  .header { background: var(--wine); padding: 28px 24px 20px; margin: 0 -16px 24px; text-align: center; }
+  .header h1 { color: var(--gold); font-size: 24px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 4px; }
+  .header p { color: var(--sand2); font-size: 13px; opacity: .85; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; }
+  .tab { flex: 1; padding: 9px 4px; border: none; border-radius: var(--radius-sm); background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-muted); transition: all .15s; }
+  .tab.active { background: var(--wine); color: var(--gold); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; }
+  .section-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+  /* Form */
+  label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px; }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--text); font-size: 14px; transition: border-color .15s;
+  }
+  input[type=text]:focus, input[type=number]:focus { outline: none; border-color: var(--wine); }
+  input[type=number] { text-align: center; font-size: 16px; font-weight: 600; padding: 8px; }
+  .mb { margin-bottom: 14px; }
+
+  /* Trip grid */
+  .trip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .trip-chip { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; cursor: pointer; transition: all .15s; font-size: 12px; color: var(--text-muted); display: flex; align-items: flex-start; gap: 8px; }
+  .trip-chip.sel { background: #FAF3E8; border-color: var(--wine); color: var(--wine); }
+  @media (prefers-color-scheme: dark) { .trip-chip.sel { background: #3A1A10; } }
+  .trip-chip .chk { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+  .trip-chip strong { display: block; font-size: 13px; }
+  .trip-chip span { font-size: 11px; opacity: .75; }
+
+  /* Bodega block */
+  .bodega-block { margin-bottom: 14px; transition: opacity .2s; }
+  .bodega-block.off { opacity: .3; pointer-events: none; }
+  .trip-badge { display: inline-block; background: var(--sand); color: var(--wine); font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
+  .bodega-row { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
+  .bodega-name { font-size: 14px; font-weight: 600; color: var(--wine); margin-bottom: 10px; }
+  .scores-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .score-col label { font-size: 10px; text-align: center; margin-bottom: 4px; line-height: 1.3; }
+  .score-col input { border-radius: var(--radius-sm); }
+
+  /* Buttons */
+  .btn { padding: 11px 20px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; font-weight: 600; transition: all .15s; border: 1px solid; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-primary { background: var(--wine); color: var(--gold); border-color: var(--wine); width: 100%; justify-content: center; font-size: 15px; }
+  .btn-primary:hover { background: var(--wine-mid); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-ghost { background: transparent; color: var(--text-muted); border-color: var(--border); }
+  .btn-ghost:hover { border-color: var(--wine); color: var(--wine); }
+  .btn-danger { background: var(--red-bg); color: var(--red-text); border-color: transparent; padding: 6px 10px; font-size: 12px; }
+
+  /* Alerts */
+  .alert { padding: 11px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 14px; }
+  .alert-info { background: var(--blue-bg); color: var(--blue-text); }
+  .alert-success { background: var(--green-bg); color: var(--green-text); }
+  .alert-error { background: var(--red-bg); color: var(--red-text); }
+
+  /* Ranking table */
+  .rank-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
+  th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--sand); }
+
+  .medal { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .m1 { background: #FFD700; color: #7A5800; }
+  .m2 { background: #C0C0C0; color: #3A3A3A; }
+  .m3 { background: #CD7F32; color: #5A2800; }
+  .mn { background: var(--sand); color: var(--text-muted); }
+
+  .bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .bar-bg { width: 50px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+  .bar-fill { height: 100%; background: var(--wine); border-radius: 3px; }
+  .score-num { font-weight: 600; font-size: 13px; color: var(--wine); min-width: 28px; }
+  .na { color: var(--text-hint); font-size: 12px; }
+
+  .total-score { font-size: 17px; font-weight: 700; color: var(--wine); }
+
+  /* Filter */
+  .filter-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; scrollbar-width: none; }
+  .filter-scroll::-webkit-scrollbar { display: none; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-muted); white-space: nowrap; transition: all .15s; flex-shrink: 0; }
+  .filter-btn.active { background: var(--wine); color: var(--gold); border-color: var(--wine); }
+
+  /* Participants */
+  .people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .person-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+  .p-name { font-weight: 600; font-size: 13px; }
+  .p-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .weight-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; margin-top: 4px; }
+  .wb-vet { background: #FAF3E8; color: var(--wine); border: 1px solid var(--gold); }
+  .wb-hab { background: var(--sand2); color: var(--wine); border: 1px solid var(--border); }
+  .wb-via { background: var(--sand); color: var(--text-muted); border: 1px solid var(--border); }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--wine); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-full { text-align: center; padding: 40px; color: var(--text-muted); }
+
+  @media (max-width: 480px) {
+    .scores-grid { grid-template-columns: repeat(2, 1fr); }
+    .header { padding: 20px 16px 16px; }
+    .header h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>🍷 Ranking de Bodegas</h1>
+    <p>Calificaciones del grupo viajero · 2014–2025</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('ranking')">🏆 Ranking</button>
+    <button class="tab" onclick="showTab('form')">📝 Calificar</button>
+    <button class="tab" onclick="showTab('people')">👥 Participantes</button>
+  </div>
+
+  <div id="tab-ranking"></div>
+  <div id="tab-form" style="display:none"></div>
+  <div id="tab-people" style="display:none"></div>
+</div>
+
+<script>
+const TRIPS = [
+  {id:'2014-MZA', year:'2014', region:'Mendoza',   bodegas:['Ruca Malen','Fournier']},
+  {id:'2015-SAL', year:'2015', region:'Salta',     bodegas:['El Porvenir']},
+  {id:'2016-CHL', year:'2016', region:'Chile',     bodegas:['Casa del Bosque']},
+  {id:'2017-MZA', year:'2017', region:'Mendoza',   bodegas:['Zuccardi','Susana Balbo']},
+  {id:'2017-SAL', year:'2017', region:'Salta',     bodegas:['Piattelli','Laborum']},
+  {id:'2018-JUJ', year:'2018', region:'Jujuy',     bodegas:['Amanecer Andino','Viñas de Perchel']},
+  {id:'2019-SJN', year:'2019', region:'San Juan',  bodegas:['Merced del Estero','Graffigna Yanzon']},
+  {id:'2022-CAT', year:'2022', region:'Catamarca', bodegas:['Perro Guardián']},
+  {id:'2023-SAL', year:'2023', region:'Salta',     bodegas:['Tacuil','Isasmendi']},
+  {id:'2024-MZA', year:'2024', region:'Mendoza',   bodegas:['Durigutti','Sottano']},
+  {id:'2025-SRA', year:'2025', region:'San Rafael',bodegas:['Algodón','FOW - Imperial Stag','Funckenhausen']},
+];
+const ALL_BODEGAS = TRIPS.flatMap(t => t.bodegas.map(b => ({name:b, tripId:t.id, label:t.year+' · '+t.region})));
+const CATS = [
+  {key:'lugar',   label:'🏔 Lugar'},
+  {key:'comida',  label:'🍽 Comida'},
+  {key:'vinos',   label:'🍷 Vinos'},
+  {key:'pasamos', label:'🎉 Pasamos'},
+];
+
+let allData = [];
+let currentFilter = 'all';
+
+function w(n){ return n>=9?3 : n>=6?2 : n>=3?1.5 : 1; }
+function wLabel(n){ return n>=9?'Veterano ×3' : n>=6?'Habitual ×2' : n>=3?'Viajero ×1.5' : 'Novato ×1'; }
+function wClass(n){ return n>=9?'wb-vet' : n>=6?'wb-hab' : 'wb-via'; }
+
+async function api(method, body){
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api/ratings', opts);
+  return r.json();
+}
+
+async function loadData(){
+  try { allData = await api('GET'); } catch(e){ allData=[]; }
+}
+
+function showTab(tab){
+  ['ranking','form','people'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['ranking','form','people'][i]===tab);
+  });
+  if(tab==='ranking') renderRanking();
+  if(tab==='form')    renderForm();
+  if(tab==='people')  renderPeople();
+}
+
+function computeRanking(filter){
+  const scores = {};
+  ALL_BODEGAS.forEach(b => {
+    scores[b.name] = {label:b.label, tripId:b.tripId, totals:{}, weights:{}, votes:0};
+    CATS.forEach(c => { scores[b.name].totals[c.key]=0; scores[b.name].weights[c.key]=0; });
+  });
+  allData.forEach(person => {
+    const pw = w(person.trips);
+    (person.ratings||[]).forEach(r => {
+      if(!scores[r.bodega]) return;
+      CATS.forEach(c => {
+        const v = parseFloat(r[c.key]);
+        if(!isNaN(v) && r[c.key]!==null && r[c.key]!==''){
+          scores[r.bodega].totals[c.key] += v * pw;
+          scores[r.bodega].weights[c.key] += pw;
+        }
+      });
+      const hasAny = CATS.some(c => r[c.key]!==null && r[c.key]!=='');
+      if(hasAny) scores[r.bodega].votes++;
+    });
+  });
+
+  let rows = ALL_BODEGAS.map(b => {
+    const s = scores[b.name];
+    const avgs = {};
+    CATS.forEach(c => { avgs[c.key] = s.weights[c.key]>0 ? s.totals[c.key]/s.weights[c.key] : null; });
+    const filled = CATS.filter(c => avgs[c.key]!==null).length;
+    const total = filled===4 ? CATS.reduce((a,c)=>a+avgs[c.key],0)/4 : null;
+    return {name:b.name, label:s.label, tripId:s.tripId, avgs, total, votes:s.votes};
+  });
+
+  if(filter && filter!=='all') rows = rows.filter(r => r.tripId===filter);
+  rows.sort((a,b) => {
+    if(a.total===null && b.total===null) return 0;
+    if(a.total===null) return 1;
+    if(b.total===null) return -1;
+    return b.total - a.total;
+  });
+  return rows;
+}
+
+function renderRanking(){
+  const el = document.getElementById('tab-ranking');
+  if(allData.length===0){
+    el.innerHTML = `
+      <div class="filter-scroll">${filterButtons()}</div>
+      <div class="alert alert-info">Todavía no hay calificaciones. ¡Sé el primero en calificar!</div>`;
+    attachFilters();
+    return;
+  }
+  const rows = computeRanking(currentFilter==='all'?null:currentFilter);
+  let html = `<div class="filter-scroll">${filterButtons()}</div>`;
+  html += `<div class="card"><div class="rank-wrap"><table>
+    <thead><tr>
+      <th>#</th><th>Bodega</th><th>Lugar</th><th>Comida</th><th>Vinos</th><th>Pasamos</th><th>Total</th><th>Votos</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach((r,i) => {
+    const mc = i===0?'m1':i===1?'m2':i===2?'m3':'mn';
+    const bar = v => v!==null
+      ? `<div class="bar-wrap"><span class="score-num">${v.toFixed(1)}</span><div class="bar-bg"><div class="bar-fill" style="width:${v*10}%"></div></div></div>`
+      : `<span class="na">—</span>`;
+    html += `<tr>
+      <td><div class="medal ${mc}">${i+1}</div></td>
+      <td><strong style="color:var(--wine)">${r.name}</strong><br><small style="color:var(--text-muted)">${r.label}</small></td>
+      <td>${bar(r.avgs.lugar)}</td>
+      <td>${bar(r.avgs.comida)}</td>
+      <td>${bar(r.avgs.vinos)}</td>
+      <td>${bar(r.avgs.pasamos)}</td>
+      <td><span class="total-score">${r.total!==null?r.total.toFixed(2):'—'}</span></td>
+      <td style="color:var(--text-muted)">${r.votes}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+  html += `<p style="font-size:11px;color:var(--text-muted);margin-top:-6px">Promedio ponderado de las 4 categorías. Veteranos (9+ viajes) tienen peso ×3.</p>`;
+  el.innerHTML = html;
+  attachFilters();
+}
+
+function filterButtons(){
+  let h = `<button class="filter-btn ${currentFilter==='all'?'active':''}" data-filter="all">Todos</button>`;
+  TRIPS.forEach(t => {
+    h += `<button class="filter-btn ${currentFilter===t.id?'active':''}" data-filter="${t.id}">${t.year} ${t.region}</button>`;
+  });
+  return h;
+}
+
+function attachFilters(){
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentFilter = btn.dataset.filter;
+      renderRanking();
+    });
+  });
+}
+
+function renderForm(){
+  const el = document.getElementById('tab-form');
+  let html = `
+    <div class="card">
+      <div class="section-title">¿Quién sos?</div>
+      <div class="mb">
+        <label>Tu nombre completo</label>
+        <input type="text" id="f-name" placeholder="Ej: Juan García" autocomplete="name">
+      </div>
+      <div id="name-hint" style="font-size:12px;color:var(--text-muted);margin-top:-8px;margin-bottom:4px">
+        Si ya cargaste antes, se actualizarán tus calificaciones.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">¿A cuáles viajes fuiste?</div>
+      <div class="trip-grid">`;
+
+  TRIPS.forEach(t => {
+    html += `<div class="trip-chip" data-trip="${t.id}" onclick="toggleTrip(this)">
+      <span class="chk">☐</span>
+      <span><strong>${t.year}</strong><span>${t.region}</span></span>
+    </div>`;
+  });
+  html += `</div>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Tu peso en el ranking: <strong id="weight-label">seleccioná viajes</strong></p>
+    </div>`;
+
+  TRIPS.forEach(t => {
+    html += `<div class="bodega-block off" id="blk-${t.id}">
+      <div class="card">
+        <span class="trip-badge">${t.year} · ${t.region}</span>`;
+    t.bodegas.forEach(b => {
+      const sid = b.replace(/[^a-z0-9]/gi,'_');
+      html += `<div class="bodega-row">
+        <div class="bodega-name">${b}</div>
+        <div class="scores-grid">`;
+      CATS.forEach(c => {
+        html += `<div class="score-col">
+          <label>${c.label}</label>
+          <input type="number" min="1" max="10" step="1" placeholder="—"
+            id="s_${sid}_${c.key}" oninput="clamp(this)">
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `
+    <div id="form-alert"></div>
+    <button class="btn btn-primary" id="save-btn" onclick="submitForm()">
+      <span id="save-label">Guardar mis calificaciones</span>
+    </button>`;
+
+  el.innerHTML = html;
+}
+
+window.toggleTrip = function(el){
+  el.classList.toggle('sel');
+  const chk = el.querySelector('.chk');
+  chk.textContent = el.classList.contains('sel') ? '☑' : '☐';
+  updateBlocks();
+};
+
+function updateBlocks(){
+  const chips = document.querySelectorAll('.trip-chip');
+  let count = 0;
+  chips.forEach((c,i) => {
+    if(c.classList.contains('sel')){
+      count++;
+      const blk = document.getElementById('blk-'+TRIPS[i].id);
+      if(blk) blk.classList.remove('off');
+    } else {
+      const blk = document.getElementById('blk-'+TRIPS[i].id);
+      if(blk) blk.classList.add('off');
+    }
+  });
+  const lbl = document.getElementById('weight-label');
+  if(lbl) lbl.textContent = count>0 ? `${count} viaje${count!==1?'s':''} → ${wLabel(count)}` : 'seleccioná viajes';
+}
+
+window.clamp = function(el){
+  let v = parseInt(el.value);
+  if(isNaN(v)) return;
+  if(v<1) el.value=1;
+  if(v>10) el.value=10;
+};
+
+window.submitForm = async function(){
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ showAlert('error','Por favor ingresá tu nombre.'); return; }
+
+  const chips = document.querySelectorAll('.trip-chip');
+  const selectedTrips = [];
+  chips.forEach((c,i) => { if(c.classList.contains('sel') && TRIPS[i]) selectedTrips.push(TRIPS[i].id); });
+  if(selectedTrips.length===0){ showAlert('error','Seleccioná al menos un viaje.'); return; }
+
+  const ratings = [];
+  let hasAny = false;
+  ALL_BODEGAS.forEach(b => {
+    if(!selectedTrips.includes(b.tripId)) return;
+    const sid = b.name.replace(/[^a-z0-9]/gi,'_');
+    const rat = {bodega: b.name};
+    CATS.forEach(c => {
+      const el = document.getElementById(`s_${sid}_${c.key}`);
+      rat[c.key] = el && el.value!=='' ? parseFloat(el.value) : null;
+      if(rat[c.key]!==null) hasAny = true;
+    });
+    ratings.push(rat);
+  });
+  if(!hasAny){ showAlert('error','Calificá al menos una bodega.'); return; }
+
+  const btn = document.getElementById('save-btn');
+  const lbl = document.getElementById('save-label');
+  btn.disabled = true;
+  lbl.innerHTML = '<span class="spinner"></span> Guardando...';
+
+  try {
+    const res = await api('POST', { person:{name, trips:selectedTrips.length, tripIds:selectedTrips, ratings} });
+    if(res.ok){
+      await loadData();
+      showAlert('success','¡Calificaciones guardadas! El ranking ya se actualizó.');
+      setTimeout(() => showTab('ranking'), 1800);
+    } else {
+      showAlert('error', res.error || 'Error al guardar.');
+    }
+  } catch(e){
+    showAlert('error','No se pudo conectar al servidor.');
+  } finally {
+    btn.disabled = false;
+    lbl.textContent = 'Guardar mis calificaciones';
+  }
+};
+
+function showAlert(type, msg){
+  const el = document.getElementById('form-alert');
+  if(!el) return;
+  el.innerHTML = `<div class="alert alert-${type==='error'?'error':'success'}" style="margin-top:12px">${msg}</div>`;
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+async function renderPeople(){
+  const el = document.getElementById('tab-people');
+  el.innerHTML = '<div class="loading-full"><span class="spinner"></span> Cargando...</div>';
+  await loadData();
+
+  if(allData.length===0){
+    el.innerHTML = '<div class="alert alert-info">Todavía no hay participantes.</div>';
+    return;
+  }
+
+  const sorted = [...allData].sort((a,b) => b.trips - a.trips);
+  let html = `
+    <div class="card">
+      <div class="section-title">Participantes (${allData.length})</div>
+      <div class="people-grid">`;
+
+  sorted.forEach(p => {
+    const ratCount = (p.ratings||[]).filter(r => CATS.some(c=>r[c.key]!==null&&r[c.key]!=='')).length;
+    html += `<div class="person-card">
+      <div>
+        <div class="p-name">${p.name}</div>
+        <div class="p-sub">${p.trips} viaje${p.trips!==1?'s':''} · ${ratCount} bodegas</div>
+        <span class="weight-badge ${wClass(p.trips)}">${wLabel(p.trips)}</span>
+      </div>
+      <button class="btn btn-danger" onclick="deletePerson('${p.name.replace(/'/g,"\\'")}')">🗑</button>
+    </div>`;
+  });
+
+  html += `</div></div>
+    <p style="font-size:11px;color:var(--text-muted)">Solo el admin del grupo debería eliminar participantes.</p>`;
+  el.innerHTML = html;
+}
+
+window.deletePerson = async function(name){
+  if(!confirm(`¿Eliminar a ${name}?`)) return;
+  await api('DELETE', {name});
+  await loadData();
+  renderPeople();
+};
+
+// Init
+(async () => {
+  document.getElementById('tab-ranking').innerHTML = '<div class="loading-full"><span class="spinner"></span> Cargando ranking...</div>';
+  await loadData();
+  renderRanking();
+})();
+</script>
+</body>
+</html>
