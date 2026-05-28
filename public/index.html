@@ -150,7 +150,13 @@
   .wb-via { background: var(--sand); color: var(--text-muted); border: 1px solid var(--border); }
 
   /* Spinner */
-  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--wine); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+  .sort-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .sort-label { font-size: 12px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+  .sort-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-muted); white-space: nowrap; transition: all .15s; }
+  .sort-btn.active { background: var(--wine); color: var(--gold); border-color: var(--wine); }
+  .col-active { color: var(--wine) !important; }
+  .sort-active-val { color: var(--gold) !important; background: var(--wine); padding: 1px 5px; border-radius: 4px; }
+  .bar-active { background: var(--gold) !important; } border: 2px solid var(--border); border-top-color: var(--wine); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .loading-full { text-align: center; padding: 40px; color: var(--text-muted); }
@@ -204,6 +210,7 @@ const CATS = [
 
 let allData = [];
 let currentFilter = 'all';
+let currentSort = 'total'; // total | lugar | comida | vinos | pasamos
 
 function w(n){ return n>=9?3 : n>=6?2 : n>=3?1.5 : 1; }
 function wLabel(n){ return n>=9?'Veterano ×3' : n>=6?'Habitual ×2' : n>=3?'Viajero ×1.5' : 'Novato ×1'; }
@@ -265,10 +272,12 @@ function computeRanking(filter){
 
   if(filter && filter!=='all') rows = rows.filter(r => r.tripId===filter);
   rows.sort((a,b) => {
-    if(a.total===null && b.total===null) return 0;
-    if(a.total===null) return 1;
-    if(b.total===null) return -1;
-    return b.total - a.total;
+    const aVal = currentSort==='total' ? a.total : a.avgs[currentSort];
+    const bVal = currentSort==='total' ? b.total : b.avgs[currentSort];
+    if(aVal===null && bVal===null) return 0;
+    if(aVal===null) return 1;
+    if(bVal===null) return -1;
+    return bVal - aVal;
   });
   return rows;
 }
@@ -283,25 +292,50 @@ function renderRanking(){
     return;
   }
   const rows = computeRanking(currentFilter==='all'?null:currentFilter);
+
+  const sortCols = [
+    {key:'total',  label:'⭐ Total'},
+    {key:'lugar',  label:'🏔 Lugar'},
+    {key:'comida', label:'🍽 Comida'},
+    {key:'vinos',  label:'🍷 Vinos'},
+    {key:'pasamos',label:'🎉 Pasamos'},
+  ];
+
   let html = `<div class="filter-scroll">${filterButtons()}</div>`;
+
+  // Sort buttons
+  html += `<div class="sort-bar">
+    <span class="sort-label">Ordenar por:</span>`;
+  sortCols.forEach(s => {
+    html += `<button class="sort-btn ${currentSort===s.key?'active':''}" data-sort="${s.key}">${s.label}</button>`;
+  });
+  html += `</div>`;
+
   html += `<div class="card"><div class="rank-wrap"><table>
     <thead><tr>
-      <th>#</th><th>Bodega</th><th>Lugar</th><th>Comida</th><th>Vinos</th><th>Pasamos</th><th>Total</th><th>Votos</th>
+      <th>#</th><th>Bodega</th>`;
+  sortCols.slice(1).forEach(s => {
+    html += `<th class="${currentSort===s.key?'col-active':''}" style="cursor:pointer" onclick="setSort('${s.key}')">${s.label} ${currentSort===s.key?'▼':''}</th>`;
+  });
+  html += `<th class="${currentSort==='total'?'col-active':''}" style="cursor:pointer" onclick="setSort('total')">⭐ Total ${currentSort==='total'?'▼':''}</th><th>Votos</th>
     </tr></thead><tbody>`;
 
   rows.forEach((r,i) => {
     const mc = i===0?'m1':i===1?'m2':i===2?'m3':'mn';
-    const bar = v => v!==null
-      ? `<div class="bar-wrap"><span class="score-num">${v.toFixed(1)}</span><div class="bar-bg"><div class="bar-fill" style="width:${v*10}%"></div></div></div>`
-      : `<span class="na">—</span>`;
+    const bar = (v, key) => {
+      const isActive = currentSort === key;
+      return v!==null
+        ? `<div class="bar-wrap"><span class="score-num${isActive?' sort-active-val':''}">${v.toFixed(1)}</span><div class="bar-bg"><div class="bar-fill${isActive?' bar-active':''}" style="width:${v*10}%"></div></div></div>`
+        : `<span class="na">—</span>`;
+    };
     html += `<tr>
       <td><div class="medal ${mc}">${i+1}</div></td>
       <td><strong style="color:var(--wine)">${r.name}</strong><br><small style="color:var(--text-muted)">${r.label}</small></td>
-      <td>${bar(r.avgs.lugar)}</td>
-      <td>${bar(r.avgs.comida)}</td>
-      <td>${bar(r.avgs.vinos)}</td>
-      <td>${bar(r.avgs.pasamos)}</td>
-      <td><span class="total-score">${r.total!==null?r.total.toFixed(2):'—'}</span></td>
+      <td>${bar(r.avgs.lugar,'lugar')}</td>
+      <td>${bar(r.avgs.comida,'comida')}</td>
+      <td>${bar(r.avgs.vinos,'vinos')}</td>
+      <td>${bar(r.avgs.pasamos,'pasamos')}</td>
+      <td><span class="total-score${currentSort==='total'?' sort-active-val':''}">${r.total!==null?r.total.toFixed(2):'—'}</span></td>
       <td style="color:var(--text-muted)">${r.votes}</td>
     </tr>`;
   });
@@ -309,7 +343,15 @@ function renderRanking(){
   html += `<p style="font-size:11px;color:var(--text-muted);margin-top:-6px">Promedio ponderado de las 4 categorías. Veteranos (9+ viajes) tienen peso ×3.</p>`;
   el.innerHTML = html;
   attachFilters();
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => setSort(btn.dataset.sort));
+  });
 }
+
+window.setSort = function(key){
+  currentSort = key;
+  renderRanking();
+};
 
 function filterButtons(){
   let h = `<button class="filter-btn ${currentFilter==='all'?'active':''}" data-filter="all">Todos</button>`;
