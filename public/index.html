@@ -176,13 +176,13 @@
   </div>
 
   <div class="tabs">
-    <button class="tab active" onclick="showTab('ranking')">🏆 Ranking</button>
-    <button class="tab" onclick="showTab('form')">📝 Calificar</button>
+    <button class="tab active" onclick="showTab('form')">📝 Calificar</button>
+    <button class="tab" onclick="showTab('ranking')">🏆 Ranking</button>
     <button class="tab" onclick="showTab('people')">👥 Participantes</button>
   </div>
 
-  <div id="tab-ranking"></div>
-  <div id="tab-form" style="display:none"></div>
+  <div id="tab-form"></div>
+  <div id="tab-ranking" style="display:none"></div>
   <div id="tab-people" style="display:none"></div>
 </div>
 
@@ -228,11 +228,11 @@ async function loadData(){
 }
 
 function showTab(tab){
-  ['ranking','form','people'].forEach(t => {
+  ['form','ranking','people'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===tab?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['ranking','form','people'][i]===tab);
+    el.classList.toggle('active', ['form','ranking','people'][i]===tab);
   });
   if(tab==='ranking') renderRanking();
   if(tab==='form')    renderForm();
@@ -554,9 +554,8 @@ window.deletePerson = async function(name){
 
 // Init
 (async () => {
-  document.getElementById('tab-ranking').innerHTML = '<div class="loading-full"><span class="spinner"></span> Cargando ranking...</div>';
   await loadData();
-  renderRanking();
+  renderForm();
 })();
 </script>
 </body>
